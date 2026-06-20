@@ -1,0 +1,237 @@
+.component-sidebar{
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sb-w);
+  height: 100dvh;
+  z-index: 10000;
+
+  transform: translate3d(-110%,0,0);
+  transition: transform var(--dur) var(--ease);
+  pointer-events: none;
+
+  padding-left: var(--safe-left);
+  padding-right: 0;
+  will-change: transform;
+}
+
+.component-sidebar.open{
+  transform: translate3d(0,0,0);
+  pointer-events: auto;
+}
+
+.component-sidebar-inner{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  background: linear-gradient(180deg, var(--bg1), var(--bg0));
+  color: var(--text);
+
+  backdrop-filter: blur(var(--blur)) saturate(1.18);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.18);
+
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.component-sidebar-header{
+  position: sticky;
+  top: 0;
+  z-index: 5;
+
+  padding: calc(14px + var(--safe-top)) var(--sb-pad) 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.component-sidebar-title{
+  margin: 15px;
+  font-size: var(--t-title);
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+
+.component-sidebar-title::after{
+  content: "Select a part to focus";
+  display: block;
+  margin-top: 6px;
+
+  font-size: var(--t-sub);
+  font-weight: 650;
+  letter-spacing: .02em;
+  text-transform: none;
+  color: var(--muted);
+}
+
+.component-close{
+  margin-left: auto;
+  width: var(--toggle-size);
+  height: var(--toggle-size);
+  border-radius: 999px;
+
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,.94);
+
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+
+  box-shadow: var(--shadow2);
+  transition:
+    transform 160ms var(--ease2),
+    background 160ms var(--ease2),
+    border-color 160ms var(--ease2),
+    box-shadow 160ms var(--ease2);
+}
+
+.component-close:hover{
+  background: rgba(255, 0, 0, 0.48);
+}
+
+.component-close:active{
+  transform: translateY(0);
+}
+
+.component-close svg{
+  width: 28px;
+  height: 28px;
+  opacity: .95;
+}
+
+.component-sidebar-body{
+  flex: 1;
+  min-height: 0;
+
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+
+  padding: 14px var(--sb-pad) 18px;
+}
+
+#componentList{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* FOOTER */
+
+.component-sidebar-footer{
+  flex-shrink: 0;
+  z-index: 8;
+
+  padding: 14px 18px calc(16px + var(--safe-bottom));
+
+  border-top: 2px solid #0c8997;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0,0,0,0),
+      rgba(0,0,0,.50) 34%,
+      rgba(0,0,0,.88)
+    );
+}
+
+.sidebar-footer-actions,
+.sidebar-footer-actions--icons{
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-footer-actions--icons{
+  padding: 0;
+
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sidebar-action{
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  gap: 10px;
+  border-radius: 14px;
+
+  border: 1px solid rgba(95, 95, 95, 0.4);
+  background: transparent;
+  color: rgba(255,255,255,.92);
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: .01em;
+
+  cursor: pointer;
+
+  transition:
+    transform 160ms var(--ease2),
+    background 160ms var(--ease2),
+    border-color 160ms var(--ease2),
+    box-shadow 160ms var(--ease2);
+}
+
+.sidebar-action:hover{
+  border-color: #11cee3;
+}
+
+.sidebar-action--icon{
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.sidebar-action img{
+  width: 24px;
+  height: 24px;
+
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+
+  filter: brightness(0) invert(1);
+}
+
+.sidebar-action-label{
+  min-width: 0;
+
+  font-size: 14px;
+  font-weight: 850;
+  color: rgba(255,255,255,.92);
+
+  white-space: nowrap;
+}
+
+.sidebar-action--logout svg{
+  width: 22px;
+  height: 22px;
+}
+
+.sidebar-action--emergency.is-active{
+  border-color: #ff4b4b;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,75,75,.15),
+      rgba(255,75,75,.08)
+    );
+}
