@@ -1,34 +1,116 @@
+# ===============================
 # VS Code
+# ===============================
 .vscode/
 
+# ===============================
+# JetBrains IDEs
+# ===============================
+.idea/
+
+# ===============================
 # Dependencies
+# ===============================
 node_modules/
 **/node_modules/
 
+# ===============================
 # Build output
+# ===============================
 dist/
+coverage/
 
+# ===============================
 # Environment variables
+# ===============================
 .env
 .env.local
 .env.production
+backend/.env
+backend/.env.local
 
-# OS files
-.DS_Store
-**/.DS_Store
-Thumbs.db
-
+# ===============================
 # Logs
+# ===============================
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# ===============================
+# Vite cache
+# ===============================
+.vite/
+
+# ===============================
+# OS files
+# ===============================
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# ===============================
 # Local scripts
+# ===============================
 start.bat
 server.ps1
 
-# Vite cache
-.vite/
+# ===============================
+# Temporary files
+# ===============================
+*.tmp
+*.temp
 
-# Optional
-*.log
+# ===============================
+# Runtime PID files
+# ===============================
+*.pid
+
+# ===============================
+# SQLite databases (future)
+# ===============================
+*.sqlite
+*.sqlite3
+
+# ===============================
+# Python cache (future AI tools)
+# ===============================
+__pycache__/
+*.pyc
+
+# ===============================
+# Mac metadata
+# ===============================
+.AppleDouble
+.LSOverride
+
+# ===============================
+# Windows metadata
+# ===============================
+Desktop.ini
+
+# ===============================
+# Package lock backups
+# ===============================
+*.tgz
+
+# ===============================
+# Optional local uploads
+# Uncomment if documents should not be versioned
+# ===============================
+# public/docs/components/*
+# public/docs/main_docs/*
+# public/docs/help/*
+
+# AI documentation
+AI_CONTEXT_v2.md
+
+# Claude temporary files
+.claude/
+
+# Cursor
+.cursor/
+
+# Local backups
+backup/
+*.bak
