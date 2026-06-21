@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # ============================================================
 #  SMECO 2.0 — Automatic Setup & Launch
@@ -6,6 +5,10 @@
 #  Usage:
 #  chmod +x start.sh
 #  ./start.sh
+#
+#  Current architecture:
+#  Frontend: Vite + Three.js
+#  Backend: Express + PostgreSQL + JWT + SSE
 # ============================================================
 
 set -e
@@ -26,9 +29,15 @@ header() { printf "\n%b%s%b\n" "$BOLD" "$1" "$RESET"; printf "──────
 
 FRONTEND_PORT=5173
 BACKEND_PORT=3001
+
 FRONTEND_URL="http://localhost:$FRONTEND_PORT"
 BACKEND_URL="http://localhost:$BACKEND_PORT"
-BACKEND_HEALTH_URL="$BACKEND_URL/health"
+BACKEND_HEALTH_URL="$BACKEND_URL/api/health"
+BACKEND_STATUS_URL="$BACKEND_URL/api/status"
+BACKEND_EVENTS_URL="$BACKEND_URL/api/events"
+
+BACKEND_PID=""
+FRONTEND_PID=""
 
 clear
 
@@ -42,7 +51,7 @@ printf "╚══════╝╚═╝     ╚═╝╚══════╝ 
 printf "%b\n" "$RESET"
 
 printf "%bSMECO 2.0 — 3D Ship Engine Platform%b\n" "$BOLD" "$RESET"
-printf "%bAutomatic setup, backend launch and frontend start%b\n\n" "$BLUE" "$RESET"
+printf "%bAutomatic setup for Frontend + Backend + PostgreSQL/SSE%b\n\n" "$BLUE" "$RESET"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
@@ -54,6 +63,8 @@ done
 [ ! -f "$PROJECT_ROOT/package.json" ] && error "package.json was not found. Run this script from the project root directory."
 
 cd "$PROJECT_ROOT"
+BACKEND_DIR="$PROJECT_ROOT/backend"
+
 log "Working directory: $PROJECT_ROOT"
 
 is_port_in_use() {
@@ -108,9 +119,33 @@ kill_port() {
   fi
 }
 
+ensure_env_value() {
+  local FILE=$1
+  local KEY=$2
+  local VALUE=$3
+
+  if [ ! -f "$FILE" ]; then
+    touch "$FILE"
+  fi
+
+  if grep -q "^$KEY=" "$FILE"; then
+    return 0
+  fi
+
+  printf "\n%s=%s\n" "$KEY" "$VALUE" >> "$FILE"
+  ok "Added $KEY to $FILE"
+}
+
+has_env_key() {
+  local FILE=$1
+  local KEY=$2
+
+  [ -f "$FILE" ] && grep -q "^$KEY=" "$FILE"
+}
+
 wait_for_backend() {
   local URL=$1
-  local MAX_ATTEMPTS=15
+  local MAX_ATTEMPTS=20
   local ATTEMPT=1
 
   while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
@@ -131,103 +166,29 @@ wait_for_backend() {
   return 1
 }
 
-header "1. Checking Node.js"
+open_browser() {
+  local URL=$1
 
-if ! command -v node >/dev/null 2>&1; then
-  error "Node.js is not installed. Install Node.js 18+ from https://nodejs.org"
-fi
-
-NODE_MAJOR=$(node -v | sed 's/v//' | cut -d. -f1)
-
-if [ "$NODE_MAJOR" -lt 18 ]; then
-  warn "Node.js version 18+ is recommended. Your version: $(node -v)"
-else
-  ok "Node.js $(node -v)"
-fi
-
-if ! command -v npm >/dev/null 2>&1; then
-  error "npm was not found. Reinstall Node.js."
-fi
-
-ok "npm $(npm -v)"
-
-header "2. Checking Ports"
-
-kill_port "$FRONTEND_PORT"
-kill_port "$BACKEND_PORT"
-
-if is_port_in_use "$FRONTEND_PORT"; then
-  error "Could not free frontend port $FRONTEND_PORT"
-else
-  ok "Frontend port $FRONTEND_PORT is available"
-fi
-
-if is_port_in_use "$BACKEND_PORT"; then
-  error "Could not free backend port $BACKEND_PORT"
-else
-  ok "Backend port $BACKEND_PORT is available"
-fi
-
-header "3. Frontend — Package Installation"
-
-if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
-  ok "Frontend node_modules already exists — skipping installation"
-else
-  log "Installing frontend packages..."
-  npm install || error "Frontend npm install failed"
-  ok "Frontend packages installed"
-fi
-
-header "4. Backend — Package Installation"
-
-BACKEND_DIR="$PROJECT_ROOT/backend"
-BACKEND_PID=""
-FRONTEND_PID=""
-
-if [ ! -d "$BACKEND_DIR" ]; then
-  warn "backend/ directory was not found — skipping backend"
-else
-  cd "$BACKEND_DIR"
-
-  if [ ! -f "package.json" ]; then
-    error "backend/package.json was not found."
-  fi
-
-  if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
-    ok "Backend node_modules already exists — skipping installation"
+  if command -v cmd.exe >/dev/null 2>&1; then
+    cmd.exe /c start "" "$URL" >/dev/null 2>&1 &
+  elif command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -NoProfile -Command "Start-Process '$URL'" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then
+    open "$URL" >/dev/null 2>&1 &
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$URL" >/dev/null 2>&1 &
   else
-    log "Installing backend packages..."
-    npm install || error "Backend npm install failed"
-    ok "Backend packages installed"
+    warn "Could not open the browser automatically."
   fi
-
-  mkdir -p data
-  mkdir -p "$PROJECT_ROOT/public/docs/components"
-  ok "Backend data and docs directories prepared"
-
-  cd "$PROJECT_ROOT"
-fi
-
-header "5. Environment Configuration"
-
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-  cp .env.example .env
-  ok ".env created from .env.example"
-elif [ -f ".env" ]; then
-  ok ".env exists"
-else
-  ok ".env is not required"
-fi
-
-header "6. Starting Servers"
+}
 
 cleanup() {
   printf "\n"
   log "Shutting down servers..."
 
   if command -v taskkill.exe >/dev/null 2>&1; then
-    [ -n "$BACKEND_PID" ] && taskkill.exe //F //T //PID "$BACKEND_PID" >/dev/null 2>&1
-    [ -n "$FRONTEND_PID" ] && taskkill.exe //F //T //PID "$FRONTEND_PID" >/dev/null 2>&1
+    [ -n "$BACKEND_PID" ] && taskkill.exe //F //T //PID "$BACKEND_PID" >/dev/null 2>&1 || true
+    [ -n "$FRONTEND_PID" ] && taskkill.exe //F //T //PID "$FRONTEND_PID" >/dev/null 2>&1 || true
   else
     [ -n "$BACKEND_PID" ] && kill "$BACKEND_PID" 2>/dev/null || true
     [ -n "$FRONTEND_PID" ] && kill "$FRONTEND_PID" 2>/dev/null || true
@@ -242,24 +203,163 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-if [ -d "$BACKEND_DIR" ]; then
-  log "Starting backend at $BACKEND_URL ..."
+header "1. Checking Node.js and npm"
 
-  cd "$BACKEND_DIR"
+if ! command -v node >/dev/null 2>&1; then
+  error "Node.js is not installed. Install Node.js 18+ from https://nodejs.org"
+fi
 
-  node server.js &
-  BACKEND_PID=$!
+NODE_MAJOR=$(node -v | sed 's/v//' | cut -d. -f1)
 
-  cd "$PROJECT_ROOT"
+if [ "$NODE_MAJOR" -lt 18 ]; then
+  warn "Node.js 18+ is recommended. Current version: $(node -v)"
+else
+  ok "Node.js $(node -v)"
+fi
 
-  if wait_for_backend "$BACKEND_HEALTH_URL"; then
-    ok "Backend started"
-  elif kill -0 "$BACKEND_PID" 2>/dev/null; then
-    warn "Backend is running, but health check did not respond at $BACKEND_HEALTH_URL"
+if ! command -v npm >/dev/null 2>&1; then
+  error "npm was not found. Reinstall Node.js."
+fi
+
+ok "npm $(npm -v)"
+
+header "2. Checking Project Structure"
+
+[ ! -f "$PROJECT_ROOT/package.json" ] && error "Frontend package.json missing"
+ok "Frontend package.json found"
+
+[ ! -d "$BACKEND_DIR" ] && error "backend/ directory missing"
+[ ! -f "$BACKEND_DIR/package.json" ] && error "backend/package.json missing"
+[ ! -f "$BACKEND_DIR/server.js" ] && error "backend/server.js missing"
+
+ok "Backend structure found"
+
+if [ ! -f "$PROJECT_ROOT/public/glb/SFIA.glb" ]; then
+  warn "public/glb/SFIA.glb was not found. Viewer may not load the 3D model."
+else
+  ok "3D model found: public/glb/SFIA.glb"
+fi
+
+header "3. Preparing Directories"
+
+mkdir -p "$PROJECT_ROOT/public/docs/components"
+mkdir -p "$PROJECT_ROOT/public/docs/main_docs"
+mkdir -p "$PROJECT_ROOT/public/docs/help"
+mkdir -p "$PROJECT_ROOT/public/draco/gltf"
+
+ok "Public document directories prepared"
+
+header "4. Environment Configuration"
+
+if [ ! -f "$PROJECT_ROOT/.env" ]; then
+  if [ -f "$PROJECT_ROOT/.env.example" ]; then
+    cp "$PROJECT_ROOT/.env.example" "$PROJECT_ROOT/.env"
+    ok "Frontend .env created from .env.example"
   else
-    error "Backend failed to start. Check backend/server.js"
+    touch "$PROJECT_ROOT/.env"
+    ok "Frontend .env created"
+  fi
+else
+  ok "Frontend .env exists"
+fi
+
+ensure_env_value "$PROJECT_ROOT/.env" "VITE_API_BASE_URL" "$BACKEND_URL"
+
+if [ ! -f "$BACKEND_DIR/.env" ]; then
+  if [ -f "$BACKEND_DIR/.env.example" ]; then
+    cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
+    ok "Backend .env created from backend/.env.example"
+  else
+    touch "$BACKEND_DIR/.env"
+    warn "Backend .env created empty — PostgreSQL values may still be required"
+  fi
+else
+  ok "Backend .env exists"
+fi
+
+if ! has_env_key "$BACKEND_DIR/.env" "JWT_SECRET"; then
+  ensure_env_value "$BACKEND_DIR/.env" "JWT_SECRET" "dev_secret_change_me"
+  warn "JWT_SECRET was missing. Added development default. Change it for production."
+else
+  ok "JWT_SECRET exists"
+fi
+
+if has_env_key "$BACKEND_DIR/.env" "DATABASE_URL"; then
+  ok "DATABASE_URL exists"
+else
+  warn "DATABASE_URL not found in backend/.env"
+
+  if has_env_key "$BACKEND_DIR/.env" "PGHOST" &&
+     has_env_key "$BACKEND_DIR/.env" "PGUSER" &&
+     has_env_key "$BACKEND_DIR/.env" "PGDATABASE"; then
+    ok "PostgreSQL PGHOST/PGUSER/PGDATABASE variables found"
+  else
+    warn "PostgreSQL env variables may be missing."
+    warn "Backend may fail unless db.js uses other defaults."
   fi
 fi
+
+header "5. Checking Ports"
+
+kill_port "$FRONTEND_PORT"
+kill_port "$BACKEND_PORT"
+
+ok "Frontend port $FRONTEND_PORT is available"
+ok "Backend port $BACKEND_PORT is available"
+
+header "6. Installing Frontend Packages"
+
+if [ -d "$PROJECT_ROOT/node_modules" ]; then
+  ok "Frontend node_modules exists — skipping npm install"
+else
+  log "Installing frontend packages..."
+  npm install || error "Frontend npm install failed"
+  ok "Frontend packages installed"
+fi
+
+header "7. Installing Backend Packages"
+
+cd "$BACKEND_DIR"
+
+if [ -d "$BACKEND_DIR/node_modules" ]; then
+  ok "Backend node_modules exists — skipping npm install"
+else
+  log "Installing backend packages..."
+  npm install || error "Backend npm install failed"
+  ok "Backend packages installed"
+fi
+
+cd "$PROJECT_ROOT"
+
+header "8. Starting Backend"
+
+log "Starting backend at $BACKEND_URL ..."
+
+cd "$BACKEND_DIR"
+npm run start &
+BACKEND_PID=$!
+cd "$PROJECT_ROOT"
+
+if wait_for_backend "$BACKEND_HEALTH_URL"; then
+  ok "Backend health check passed: $BACKEND_HEALTH_URL"
+else
+  if kill -0 "$BACKEND_PID" 2>/dev/null; then
+    warn "Backend process is running, but health check failed at $BACKEND_HEALTH_URL"
+    warn "Check whether backend exposes GET /api/health"
+  else
+    error "Backend failed to start. Check backend/server.js and backend/.env"
+  fi
+fi
+
+if command -v curl >/dev/null 2>&1; then
+  if curl -s "$BACKEND_STATUS_URL" >/dev/null 2>&1; then
+    ok "Backend status endpoint available: $BACKEND_STATUS_URL"
+  else
+    warn "Backend status endpoint did not respond: $BACKEND_STATUS_URL"
+  fi
+fi
+
+header "9. Starting Frontend"
 
 log "Starting frontend at $FRONTEND_URL ..."
 
@@ -270,42 +370,26 @@ sleep 2
 
 if kill -0 "$FRONTEND_PID" 2>/dev/null; then
   ok "Frontend started"
-
-  log "Opening browser..."
-
-  if command -v cmd.exe >/dev/null 2>&1; then
-    cmd.exe /c start "" "$FRONTEND_URL" >/dev/null 2>&1 &
-
-  elif command -v powershell.exe >/dev/null 2>&1; then
-    powershell.exe -NoProfile -Command "Start-Process '$FRONTEND_URL'" >/dev/null 2>&1 &
-
-  elif command -v open >/dev/null 2>&1; then
-    open "$FRONTEND_URL" >/dev/null 2>&1 &
-
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$FRONTEND_URL" >/dev/null 2>&1 &
-
-  else
-    warn "Could not open the browser automatically."
-  fi
-
 else
-  error "Frontend failed to start. Check package.json and Vite configuration."
+  error "Frontend failed to start. Check Vite/package.json."
 fi
+
+header "10. Opening Browser"
+
+open_browser "$FRONTEND_URL"
+ok "Browser launch requested"
 
 printf "\n"
-printf "%b╔══════════════════════════════════════╗%b\n" "$GREEN$BOLD" "$RESET"
-printf "%b║       SMECO 2.0 — READY             ║%b\n" "$GREEN$BOLD" "$RESET"
-printf "%b╠══════════════════════════════════════╣%b\n" "$GREEN$BOLD" "$RESET"
-printf "%b║  Frontend: http://localhost:5173     ║%b\n" "$GREEN$BOLD" "$RESET"
-
-if [ -d "$BACKEND_DIR" ]; then
-  printf "%b║  Backend:  http://localhost:3001     ║%b\n" "$GREEN$BOLD" "$RESET"
-fi
-
-printf "%b╠══════════════════════════════════════╣%b\n" "$GREEN$BOLD" "$RESET"
-printf "%b║  Stop servers: Ctrl + C             ║%b\n" "$GREEN$BOLD" "$RESET"
-printf "%b╚══════════════════════════════════════╝%b\n" "$GREEN$BOLD" "$RESET"
+printf "%b╔══════════════════════════════════════════════╗%b\n" "$GREEN$BOLD" "$RESET"
+printf "%b║          SMECO 2.0 — READY                  ║%b\n" "$GREEN$BOLD" "$RESET"
+printf "%b╠══════════════════════════════════════════════╣%b\n" "$GREEN$BOLD" "$RESET"
+printf "%b║  Frontend: %-32s ║%b\n" "$FRONTEND_URL" "$GREEN$BOLD" "$RESET"
+printf "%b║  Backend:  %-32s ║%b\n" "$BACKEND_URL" "$GREEN$BOLD" "$RESET"
+printf "%b║  Health:   %-32s ║%b\n" "$BACKEND_HEALTH_URL" "$GREEN$BOLD" "$RESET"
+printf "%b║  SSE:      %-32s ║%b\n" "$BACKEND_EVENTS_URL" "$GREEN$BOLD" "$RESET"
+printf "%b╠══════════════════════════════════════════════╣%b\n" "$GREEN$BOLD" "$RESET"
+printf "%b║  Stop servers: Ctrl + C                     ║%b\n" "$GREEN$BOLD" "$RESET"
+printf "%b╚══════════════════════════════════════════════╝%b\n" "$GREEN$BOLD" "$RESET"
 printf "\n"
 
 wait
