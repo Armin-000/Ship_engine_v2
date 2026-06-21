@@ -383,10 +383,17 @@ printf "\n"
 printf "%b╔══════════════════════════════════════════════╗%b\n" "$GREEN$BOLD" "$RESET"
 printf "%b║          SMECO 2.0 — READY                  ║%b\n" "$GREEN$BOLD" "$RESET"
 printf "%b╠══════════════════════════════════════════════╣%b\n" "$GREEN$BOLD" "$RESET"
-printf "%b║  Frontend: %-32s ║%b\n" "$FRONTEND_URL" "$GREEN$BOLD" "$RESET"
-printf "%b║  Backend:  %-32s ║%b\n" "$BACKEND_URL" "$GREEN$BOLD" "$RESET"
-printf "%b║  Health:   %-32s ║%b\n" "$BACKEND_HEALTH_URL" "$GREEN$BOLD" "$RESET"
-printf "%b║  SSE:      %-32s ║%b\n" "$BACKEND_EVENTS_URL" "$GREEN$BOLD" "$RESET"
+printf "%b║  Frontend: %-32s ║%b\n" \
+"$GREEN$BOLD" "$FRONTEND_URL" "$RESET"
+
+printf "%b║  Backend:  %-32s ║%b\n" \
+"$GREEN$BOLD" "$BACKEND_URL" "$RESET"
+
+printf "%b║  Health:   %-32s ║%b\n" \
+"$GREEN$BOLD" "$BACKEND_HEALTH_URL" "$RESET"
+
+printf "%b║  SSE:      %-32s ║%b\n" \
+"$GREEN$BOLD" "$BACKEND_EVENTS_URL" "$RESET"
 printf "%b╠══════════════════════════════════════════════╣%b\n" "$GREEN$BOLD" "$RESET"
 printf "%b║  Stop servers: Ctrl + C                     ║%b\n" "$GREEN$BOLD" "$RESET"
 printf "%b╚══════════════════════════════════════════════╝%b\n" "$GREEN$BOLD" "$RESET"
